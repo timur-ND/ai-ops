@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "victorialogs": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "--network",
+        "host",
+        "-e",
+        "VICTORIALOGS_ADDR=${VICTORIALOGS_URL}",
+        "-e",
+        "VICTORIALOGS_ACCOUNT_ID=${VICTORIALOGS_ACCOUNT_ID:-0}",
+        "-e",
+        "VICTORIALOGS_TOKEN=${VICTORIALOGS_TOKEN}",
+        "ghcr.io/victoriametrics-community/mcp-victorialogs:latest"
+      ],
+      "description": "MCP server for VictoriaLogs - log search and analysis"
+    }
+  }
+}

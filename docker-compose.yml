@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  mcp-grafana:
+    image: ghcr.io/grafana/mcp-grafana:latest
+    container_name: mcp-grafana
+    network_mode: host
+    environment:
+      - GRAFANA_URL=${GRAFANA_URL}
+      - GRAFANA_TOKEN=${GRAFANA_TOKEN}
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+  mcp-victorialogs:
+    image: ghcr.io/victoriametrics-community/mcp-victorialogs:latest
+    container_name: mcp-victorialogs
+    network_mode: host
+    environment:
+      - VICTORIALOGS_ADDR=${VICTORIALOGS_URL}
+      - VICTORIALOGS_ACCOUNT_ID=${VICTORIALOGS_ACCOUNT_ID:-0}
+      - VICTORIALOGS_TOKEN=${VICTORIALOGS_TOKEN}
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
