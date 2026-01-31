@@ -11,7 +11,7 @@ MCP server for VictoriaLogs integration, enabling AI to search and analyze logs 
 cp .env.example .env
 
 # Edit .env and add your credentials
-VICTORIALOGS_URL=https://victorialogs.pud.ink
+VICTORIALOGS_URL=https://victorialogs.example.com
 VICTORIALOGS_TOKEN=your-token-here
 VICTORIALOGS_ACCOUNT_ID=0
 ```
@@ -33,7 +33,7 @@ docker-compose pull mcp-victorialogs
 kubectl port-forward -n monitoring svc/victorialogs 9428:9428
 
 # Or use ingress
-# URL will be: https://victorialogs.pud.ink
+# URL will be: https://victorialogs.example.com
 ```
 
 ## 🔧 Configuration
@@ -82,7 +82,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
         "--network",
         "host",
         "-e",
-        "VICTORIALOGS_ADDR=https://victorialogs.pud.ink",
+        "VICTORIALOGS_ADDR=https://victorialogs.example.com",
         "-e",
         "VICTORIALOGS_ACCOUNT_ID=0",
         "-e",

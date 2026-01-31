@@ -7,7 +7,7 @@ MCP server for Grafana integration, enabling AI to retrieve metrics, manage dash
 ### 1. Create API Token in Grafana
 
 ```bash
-# Go to Grafana UI: https://grafana.pud.ink
+# Go to Grafana UI: https://grafana.example.com
 # Administration -> Service accounts -> Create service account
 # Create token with Admin or Viewer role (depending on needs)
 ```
@@ -19,7 +19,7 @@ MCP server for Grafana integration, enabling AI to retrieve metrics, manage dash
 cp .env.example .env
 
 # Edit .env and add your credentials
-GRAFANA_URL=https://grafana.pud.ink
+GRAFANA_URL=https://grafana.example.com
 GRAFANA_TOKEN=glsa_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
@@ -77,7 +77,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
         "--network",
         "host",
         "-e",
-        "GRAFANA_URL=https://grafana.pud.ink",
+        "GRAFANA_URL=https://grafana.example.com",
         "-e",
         "GRAFANA_TOKEN=glsa_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
         "ghcr.io/grafana/mcp-grafana:latest"
@@ -163,7 +163,7 @@ rate(http_requests_total{service="auth"}[5m])
 
 ```bash
 # Check Grafana availability
-curl -H "Authorization: Bearer $GRAFANA_API_KEY" https://grafana.pud.ink/api/health
+curl -H "Authorization: Bearer $GRAFANA_API_KEY" https://grafana.example.com/api/health
 
 # Check environment variable
 echo $GRAFANA_API_KEY

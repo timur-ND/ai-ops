@@ -28,7 +28,7 @@ Create or edit `.vscode/settings.json` in your workspace:
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-grafana"],
       "env": {
-        "GRAFANA_URL": "https://grafana.pud.ink",
+        "GRAFANA_URL": "https://grafana.example.com",
         "GRAFANA_API_KEY": "${env:GRAFANA_API_KEY}"
       }
     },
@@ -36,7 +36,7 @@ Create or edit `.vscode/settings.json` in your workspace:
       "command": "node",
       "args": ["${workspaceFolder}/mcp-servers/victorialogs/server.js"],
       "env": {
-        "VICTORIALOGS_URL": "https://victorialogs.pud.ink"
+        "VICTORIALOGS_URL": "https://victorialogs.example.com"
       }
     }
   }
@@ -135,7 +135,7 @@ export PATH=~/.npm-global/bin:$PATH
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-grafana"],
       "env": {
-        "GRAFANA_URL": "https://grafana.pud.ink",
+        "GRAFANA_URL": "https://grafana.example.com",
         "GRAFANA_API_KEY": "${env:GRAFANA_API_KEY}"
       },
       "timeout": 30000

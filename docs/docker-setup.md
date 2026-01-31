@@ -22,10 +22,10 @@ nano .env
 
 Example `.env` file:
 ```bash
-GRAFANA_URL=https://grafana.pud.ink
+GRAFANA_URL=https://grafana.example.com
 GRAFANA_TOKEN=glsa_your_grafana_token_here
 
-VICTORIALOGS_URL=https://victorialogs.pud.ink
+VICTORIALOGS_URL=https://victorialogs.example.com
 VICTORIALOGS_TOKEN=your_victorialogs_token_here
 VICTORIALOGS_ACCOUNT_ID=0
 ```
@@ -60,7 +60,7 @@ docker-compose down -v
 ```bash
 docker run --rm -i \
   --network host \
-  -e GRAFANA_URL=https://grafana.pud.ink \
+  -e GRAFANA_URL=https://grafana.example.com \
   -e GRAFANA_TOKEN=glsa_your_token_here \
   ghcr.io/grafana/mcp-grafana:latest
 ```
@@ -70,7 +70,7 @@ docker run --rm -i \
 ```bash
 docker run --rm -i \
   --network host \
-  -e VICTORIALOGS_ADDR=https://victorialogs.pud.ink \
+  -e VICTORIALOGS_ADDR=https://victorialogs.example.com \
   -e VICTORIALOGS_ACCOUNT_ID=0 \
   -e VICTORIALOGS_TOKEN=your_token_here \
   ghcr.io/victoriametrics-community/mcp-victorialogs:latest
@@ -124,9 +124,9 @@ Create `.vscode/settings.json`:
 Load environment variables in VS Code:
 ```bash
 # Add to ~/.zshrc or ~/.bashrc
-export GRAFANA_URL=https://grafana.pud.ink
+export GRAFANA_URL=https://grafana.example.com
 export GRAFANA_TOKEN=glsa_your_token_here
-export VICTORIALOGS_URL=https://victorialogs.pud.ink
+export VICTORIALOGS_URL=https://victorialogs.example.com
 export VICTORIALOGS_TOKEN=your_token_here
 export VICTORIALOGS_ACCOUNT_ID=0
 ```
@@ -147,7 +147,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
         "--network",
         "host",
         "-e",
-        "GRAFANA_URL=https://grafana.pud.ink",
+        "GRAFANA_URL=https://grafana.example.com",
         "-e",
         "GRAFANA_TOKEN=glsa_your_token_here",
         "ghcr.io/grafana/mcp-grafana:latest"
@@ -162,7 +162,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
         "--network",
         "host",
         "-e",
-        "VICTORIALOGS_ADDR=https://victorialogs.pud.ink",
+        "VICTORIALOGS_ADDR=https://victorialogs.example.com",
         "-e",
         "VICTORIALOGS_ACCOUNT_ID=0",
         "-e",
@@ -235,10 +235,10 @@ sudo usermod -aG docker $USER
 # Test Grafana connection from within container
 docker run --rm -it --network host alpine sh
 apk add curl
-curl -H "Authorization: Bearer YOUR_TOKEN" https://grafana.pud.ink/api/health
+curl -H "Authorization: Bearer YOUR_TOKEN" https://grafana.example.com/api/health
 
 # Test VictoriaLogs
-curl https://victorialogs.pud.ink/health
+curl https://victorialogs.example.com/health
 ```
 
 ## Advanced Configuration

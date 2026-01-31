@@ -38,15 +38,15 @@ nano ~/Library/Application\ Support/Claude/claude_desktop_config.json
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-grafana"],
       "env": {
-        "GRAFANA_URL": "https://grafana.pud.ink",
+        "GRAFANA_URL": "https://grafana.example.com",
         "GRAFANA_API_KEY": "glsa_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
       }
     },
     "victorialogs": {
       "command": "node",
-      "args": ["/Users/timur-nd/repos/ai-ops/mcp-servers/victorialogs/server.js"],
+      "args": ["/path/to/ai-ops/mcp-servers/victorialogs/server.js"],
       "env": {
-        "VICTORIALOGS_URL": "https://victorialogs.pud.ink"
+        "VICTORIALOGS_URL": "https://victorialogs.example.com"
       }
     }
   }
@@ -138,7 +138,7 @@ Instead of hardcoding API keys, use environment variables:
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-grafana"],
       "env": {
-        "GRAFANA_URL": "https://grafana.pud.ink",
+        "GRAFANA_URL": "https://grafana.example.com",
         "GRAFANA_API_KEY": "${GRAFANA_API_KEY}"
       }
     }
@@ -167,7 +167,7 @@ Configure different environments:
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-grafana"],
       "env": {
-        "GRAFANA_URL": "https://grafana-prod.pud.ink",
+        "GRAFANA_URL": "https://grafana-prod.example.com",
         "GRAFANA_API_KEY": "prod-key"
       }
     },
@@ -175,7 +175,7 @@ Configure different environments:
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-grafana"],
       "env": {
-        "GRAFANA_URL": "https://grafana-staging.pud.ink",
+        "GRAFANA_URL": "https://grafana-staging.example.com",
         "GRAFANA_API_KEY": "staging-key"
       }
     }
@@ -196,10 +196,10 @@ Configure different environments:
 
 ```bash
 # Test Grafana connection manually
-curl -H "Authorization: Bearer YOUR_API_KEY" https://grafana.pud.ink/api/health
+curl -H "Authorization: Bearer YOUR_API_KEY" https://grafana.example.com/api/health
 
 # Test VictoriaLogs
-curl https://victorialogs.pud.ink/health
+curl https://victorialogs.example.com/health
 ```
 
 ### Permission Issues

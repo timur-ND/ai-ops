@@ -76,7 +76,7 @@ source ~/.zshrc  # or ~/.bashrc
 
 1. Test Grafana connectivity:
 ```bash
-curl https://grafana.pud.ink/api/health
+curl https://grafana.example.com/api/health
 ```
 
 2. Check if service is running:
@@ -91,7 +91,7 @@ kubectl get ingress -n monitoring
 
 4. Check DNS resolution:
 ```bash
-dig grafana.pud.ink
+dig grafana.example.com
 ```
 
 ### Unauthorized / 401 Error
@@ -104,7 +104,7 @@ dig grafana.pud.ink
 1. Verify API key is valid:
 ```bash
 curl -H "Authorization: Bearer $GRAFANA_API_KEY" \
-  https://grafana.pud.ink/api/org
+  https://grafana.example.com/api/org
 ```
 
 2. Check API key permissions:
@@ -128,7 +128,7 @@ curl -H "Authorization: Bearer $GRAFANA_API_KEY" \
 ```bash
 # Via Grafana API
 curl -H "Authorization: Bearer $GRAFANA_API_KEY" \
-  https://grafana.pud.ink/api/datasources
+  https://grafana.example.com/api/datasources
 ```
 
 2. Verify Prometheus is scraping metrics:
