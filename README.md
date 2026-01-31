@@ -11,12 +11,12 @@ ai-ops/
 │   │   ├── README.md           # Install/upgrade/rollback instructions
 │   │   └── values.yaml         # Helm values
 │   ├── grafana/
-│   │   ├── README.md
-│   │   └── values.yaml
+│   │   └── ...
 │   └── victorialogs/
-│       ├── README.md
-│       └── values.yaml
+│       └── ...
 │
+├── k8s-mcp-rbac.yaml           # RBAC for MCP server (limited permissions)
+├── generate-kubeconfig.sh      # Script to generate kubeconfig
 ├── docker-compose.yml          # MCP servers
 ├── .env.example                # Environment variables template
 └── README.md
@@ -45,15 +45,29 @@ This repo uses MCP (Model Context Protocol) servers for AI integration:
 ### Setup
 
 ```bash
-# Copy environment file
+# 1. Copy environment file
 cp .env.example .env
+nano .env  # Add Grafana/VictoriaLogs credentials
 
-# Edit with your credentials
-nano .env
+# 2. Setup Kubernetes RBAC (limited permissions)
+kubectl config use-context pudink
+kubectl apply -f k8s-mcp-rbac.yaml
 
-# Start MCP servers
+# 3. Generate kubeconfig for MCP server
+./generate-kubeconfig.sh
+
+# 4. Start MCP servers
 docker-compose up -d
 ```
+
+### Kubernetes MCP Permissions
+
+| Scope | Access |
+|-------|--------|
+| Entire cluster | **Read-only** (pods, deployments, services, gateways) |
+| `monitoring` namespace | **Full** (for helm install/upgrade) |
+
+To add more namespaces with full access, add RoleBinding in `k8s-mcp-rbac.yaml`.
 
 ### Claude Desktop Configuration
 
