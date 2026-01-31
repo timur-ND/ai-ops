@@ -1,186 +1,121 @@
-# AI-Ops: AI-Driven Infrastructure Management
+# AI-Ops
 
-Automated deployment and monitoring system using MCP servers and AI assistants.
+AI-driven infrastructure deployment and monitoring for Kubernetes.
 
-## 📁 Project Structure
+## Structure
 
 ```
 ai-ops/
-├── mcp-servers/           # MCP servers for AI integration
-│   ├── grafana/          # Grafana MCP server
-│   └── victorialogs/     # VictoriaLogs MCP server
-├── helm-charts/          # Helm charts for service deployment
-│   ├── grafana/          # Grafana + Prometheus stack
-│   └── victorialogs/     # VictoriaLogs for log aggregation
-├── scripts/              # Automation and utility scripts
-└── docs/                 # Documentation
+├── deploys/                    # Helm deployments
+│   ├── prometheus/
+│   │   ├── README.md           # Install/upgrade/rollback instructions
+│   │   └── values.yaml         # Helm values
+│   ├── grafana/
+│   │   ├── README.md
+│   │   └── values.yaml
+│   └── victorialogs/
+│       ├── README.md
+│       └── values.yaml
+│
+├── docker-compose.yml          # MCP servers
+├── .env.example                # Environment variables template
+└── README.md
 ```
 
-## 🚀 Quick Start
+## Workflow
 
-### 1. Install Dependencies
+1. **Request:** User asks to deploy/update a service
+2. **Branch:** AI creates a feature branch
+3. **Deploy:** AI runs helm install/upgrade
+4. **Verify:** AI checks logs (VictoriaLogs) and metrics (Grafana)
+5. **PR:** AI creates PR with deployment status
+6. **Review:** Human reviews and merges
+7. **Done:** AI merges if approved
 
-```bash
-# Install Docker (if not already installed)
-brew install docker
+## MCP Servers
 
-# Install Helm (if not already installed)
-brew install helm
+This repo uses MCP (Model Context Protocol) servers for AI integration:
 
-# Add Helm repositories
-helm repo add grafana https://grafana.github.io/helm-charts
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo add victoriametrics https://victoriametrics.github.io/helm-charts
-helm repo update
-```
+| Server | Purpose |
+|--------|---------|
+| `mcp-grafana` | Query metrics, dashboards, alerts |
+| `mcp-victorialogs` | Search and analyze logs |
+| `mcp-kubernetes` | Kubernetes operations (kubectl) |
 
-### 2. Deploy Grafana
-
-```bash
-# Create namespace
-kubectl create namespace monitoring
-
-# Deploy Grafana
-./scripts/deploy-grafana.sh
-
-# Check status
-kubectl get pods -n monitoring
-```
-
-### 3. Deploy VictoriaLogs
+### Setup
 
 ```bash
-# Deploy VictoriaLogs
-./scripts/deploy-victorialogs.sh
-
-# Check status
-kubectl get pods -n monitoring
-```
-
-### 4. Configure MCP Servers
-
-```bash
-# Copy and edit environment variables
+# Copy environment file
 cp .env.example .env
-nano .env  # Add your Grafana and VictoriaLogs credentials
 
-# Pull MCP server Docker images
-docker pull ghcr.io/grafana/mcp-grafana:latest
-docker pull ghcr.io/victoriametrics-community/mcp-victorialogs:latest
+# Edit with your credentials
+nano .env
 
-# For VS Code - add to settings.json
-# See docs/vscode-mcp-setup.md
-
-# For Claude Desktop - add to config
-# See docs/claude-mcp-setup.md
+# Start MCP servers
+docker-compose up -d
 ```
 
-## 🤖 Usage with AI
+### Claude Desktop Configuration
 
-After configuring MCP servers, you can interact with AI using commands like:
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
-**Example commands:**
+```json
+{
+  "mcpServers": {
+    "grafana": {
+      "command": "docker",
+      "args": ["exec", "-i", "mcp-grafana", "/app/mcp-grafana"]
+    },
+    "victorialogs": {
+      "command": "docker",
+      "args": ["exec", "-i", "mcp-victorialogs", "/mcp-victorialogs"]
+    },
+    "kubernetes": {
+      "command": "docker",
+      "args": ["exec", "-i", "mcp-kubernetes", "/mcp-k8s"]
+    }
+  }
+}
+```
 
-- "Deploy version 2.0 of blog service"
-- "Show logs for auth service from the last hour"
-- "Check CPU metrics for all pods"
-- "Rollback blog service to previous version"
-- "Show errors in blog namespace"
+## Cluster Info
 
-## 📊 MCP Servers
+| Parameter | Value |
+|-----------|-------|
+| **Context** | `pudink` |
+| **Gateway** | Contour |
+| **TLS** | Wildcard `*.pud.ink` |
+| **Monitoring NS** | `monitoring` |
 
-### Grafana MCP Server
-- **Purpose**: Retrieve metrics, dashboards, alerts
-- **Config**: `mcp-servers/grafana/config.json`
-- **Capabilities**:
-  - Query metrics and graphs
-  - Create/update dashboards
-  - Check alerts
-  - Export data
+## Example Commands
 
-### VictoriaLogs MCP Server
-- **Purpose**: Search and analyze logs
-- **Config**: `mcp-servers/victorialogs/config.json`
-- **Capabilities**:
-  - Search logs by labels
-  - Aggregate logs
-  - Analyze errors
-  - Generate reports
+```
+# Deploy new version
+"Deploy prometheus version 25.28.0"
 
-## 🛠 Automation Scripts
+# Check status
+"Show prometheus pod status and recent logs"
 
-### Deployment
-- `scripts/deploy-grafana.sh` - Deploy Grafana
-- `scripts/deploy-victorialogs.sh` - Deploy VictoriaLogs
-- `scripts/deploy-service.sh <name> <version>` - Deploy service
+# Rollback
+"Rollback grafana to previous version"
 
-### Monitoring
-- `scripts/check-health.sh` - Check health of all services
-- `scripts/get-logs.sh <service> <namespace>` - Get logs
-- `scripts/get-metrics.sh <service>` - Get metrics
+# Investigate
+"Check why prometheus is using high memory"
+```
 
-### Management
-- `scripts/rollback.sh <service> <revision>` - Rollback version
-- `scripts/scale.sh <service> <replicas>` - Scale service
-- `scripts/restart.sh <service>` - Restart service
+## Adding New Service
 
-## 📝 AI Workflow
+1. Create folder in `deploys/<service-name>/`
+2. Add `README.md` with cluster info and commands
+3. Add `values.yaml` with helm values
+4. Commit and push
 
-### Standard Deployment
+## Environment Variables
 
-1. AI receives deployment command
-2. Runs `scripts/deploy-service.sh`
-3. Monitors logs via VictoriaLogs MCP
-4. Checks metrics via Grafana MCP
-5. If issues detected - performs rollback and writes report
-
-### Problem Diagnostics
-
-1. AI receives alert or check command
-2. Queries metrics via Grafana MCP
-3. Analyzes logs via VictoriaLogs MCP
-4. Generates problem report
-5. Suggests solution
-
-## 🔧 Configuration
-
-### Grafana
-- **URL**: configured in `helm-charts/grafana/values.yaml`
-- **Datasources**: Prometheus, Loki, VictoriaLogs
-- **Dashboards**: auto-imported from `helm-charts/grafana/dashboards/`
-
-### VictoriaLogs
-- **URL**: configured in `helm-charts/victorialogs/values.yaml`
-- **Retention**: 30 days by default
-- **Storage**: uses PVC
-
-## 📚 Documentation
-
-- [VS Code MCP Setup](docs/vscode-mcp-setup.md)
-- [Claude Desktop MCP Setup](docs/claude-mcp-setup.md)
-- [API Reference](docs/api-reference.md)
-- [Troubleshooting](docs/troubleshooting.md)
-
-## 🔐 Security
-
-- All secrets stored in Kubernetes Secrets
-- MCP servers use tokens for authorization
-- TLS certificates managed via cert-manager
-
-## 📈 System Monitoring
-
-- Grafana dashboard for AI-Ops monitoring: `ai-ops-dashboard.json`
-- Alerts for MCP server failures
-- All operation logs in VictoriaLogs
-
-## 🤝 Contributing
-
-When adding new services:
-1. Create Helm chart in `helm-charts/`
-2. Add deployment script in `scripts/`
-3. Update documentation
-4. Configure monitoring and logging
-
-## 📄 License
-
-MIT
+| Variable | Description |
+|----------|-------------|
+| `GRAFANA_URL` | Grafana URL |
+| `GRAFANA_TOKEN` | Grafana API token |
+| `VICTORIALOGS_URL` | VictoriaLogs URL |
+| `VICTORIALOGS_TOKEN` | VictoriaLogs token |
+| `VICTORIALOGS_ACCOUNT_ID` | VictoriaLogs account (default: 0) |

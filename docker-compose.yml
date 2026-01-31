@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   mcp-grafana:
     image: ghcr.io/grafana/mcp-grafana:latest
@@ -20,6 +18,15 @@ services:
       - VICTORIALOGS_ADDR=${VICTORIALOGS_URL}
       - VICTORIALOGS_ACCOUNT_ID=${VICTORIALOGS_ACCOUNT_ID:-0}
       - VICTORIALOGS_TOKEN=${VICTORIALOGS_TOKEN}
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+  mcp-kubernetes:
+    image: ghcr.io/containers/kubernetes-mcp-server:latest
+    container_name: mcp-kubernetes
+    volumes:
+      - ${HOME}/.kube/config:/root/.kube/config:ro
     restart: unless-stopped
     stdin_open: true
     tty: true
