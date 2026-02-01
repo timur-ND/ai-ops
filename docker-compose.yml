@@ -23,12 +23,12 @@ services:
     tty: true
 
   mcp-kubernetes:
-    image: ghcr.io/strowk/mcp-k8s:latest
+    image: mcpk8s/server:latest
     container_name: mcp-kubernetes
     volumes:
       # Use generated kubeconfig with limited permissions
       # Generate with: ./generate-kubeconfig.sh
-      - ${KUBECONFIG_PATH:-./kubeconfig-ai-ops.yaml}:/root/.kube/config:ro
+      - ${KUBECONFIG_PATH:-./kubeconfig-ai-ops.yaml}:/home/nonroot/.kube/config:ro
     restart: unless-stopped
     stdin_open: true
     tty: true
