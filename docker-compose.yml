@@ -15,9 +15,9 @@ services:
     container_name: mcp-victorialogs
     network_mode: host
     environment:
-      - VICTORIALOGS_ADDR=${VICTORIALOGS_URL}
-      - VICTORIALOGS_ACCOUNT_ID=${VICTORIALOGS_ACCOUNT_ID:-0}
-      - VICTORIALOGS_TOKEN=${VICTORIALOGS_TOKEN}
+      - VL_INSTANCE_ENTRYPOINT=${VL_INSTANCE_ENTRYPOINT}
+      - VL_DEFAULT_TENANT_ID=${VL_DEFAULT_TENANT_ID:-0:0}
+      - VL_INSTANCE_BEARER_TOKEN=${VL_INSTANCE_BEARER_TOKEN}
     restart: unless-stopped
     stdin_open: true
     tty: true
