@@ -8,8 +8,8 @@
 | **Namespace** | `monitoring` |
 | **Release Name** | `victorialogs` |
 | **Chart** | `victoriametrics/victoria-logs-single` |
-| **Current Version** | `0.8.3` |
-| **App Version** | `1.3.2` |
+| **Current Version** | `0.11.25` |
+| **App Version** | `v1.44.0` |
 | **URL** | `https://victorialogs.pud.ink` |
 
 ## Prerequisites
@@ -29,7 +29,7 @@ kubectl config use-context pudink
 helm upgrade --install victorialogs victoriametrics/victoria-logs-single \
   -n monitoring \
   -f values.yaml \
-  --version 0.8.3 \
+  --version 0.11.25 \
   --create-namespace
 
 # Apply HTTPRoute for Gateway API
@@ -117,4 +117,5 @@ kubectl get pods -n monitoring -l app=fluent-bit
 
 | Date | Version | Changed By | Notes |
 |------|---------|------------|-------|
+| 2026-02-02 | 0.11.25 | Claude | Upgrade from 0.8.3 (app v1.0.0 → v1.44.0) |
 | 2024-XX-XX | 0.8.3 | - | Initial install |
