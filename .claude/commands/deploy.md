@@ -69,27 +69,56 @@ Use MCP tools to verify:
 
 ### 6. Update PR Status
 
-If successful:
+**If successful:**
 ```bash
 gh pr comment <pr-number> --body "✅ Upgrade verified:
-- Pods running: X/X
-- No errors in logs
+- Pod: <pod-name>
+- Image: <new-image>
+- Status: Running, Ready
+- Restarts: 0
+- Health: OK
 - Ready to merge"
 ```
 
-If failed:
+**If failed - ALWAYS ROLLBACK FIRST, then comment:**
 ```bash
-gh pr comment <pr-number> --body "❌ Upgrade failed:
-- Issue: <description>
-- Logs: <relevant error>
-- Action: Rolling back / Investigating"
-```
-
-### 7. Rollback (if needed)
-
-```bash
+# 1. Rollback immediately
 helm rollback <release-name> -n <namespace>
+
+# 2. Verify rollback succeeded
+# Check pod status via K8s MCP
+
+# 3. Comment on PR with failure details
+gh pr comment <pr-number> --body "❌ Upgrade failed - ROLLED BACK
+
+## Issue
+<description of what went wrong>
+
+## Error Logs
+\`\`\`
+<relevant error messages>
+\`\`\`
+
+## Current State
+- Rolled back to previous version
+- Pod status: <status after rollback>
+
+## Next Steps
+- [ ] Investigate root cause
+- [ ] Check release notes for breaking changes
+- [ ] Fix values.yaml if needed
+- [ ] Retry upgrade
+
+🤖 Rolled back by Claude Code"
 ```
+
+### 7. Failure Handling
+
+On upgrade failure:
+1. **Rollback first** - Don't leave broken state
+2. **Collect logs** - Get error details before rollback clears them
+3. **Comment on PR** - Document what happened
+4. **Ask user** - Whether to investigate/fix or close PR
 
 ## LogsQL Field Reference
 
