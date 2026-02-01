@@ -92,6 +92,23 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
+### Claude Code (CLI) Configuration
+
+**Important:** Конфигурация MCP серверов для Claude Code должна быть в `~/.claude.json`, а не в `~/.claude/settings.json`.
+
+Add to `~/.claude.json`:
+
+```json
+{
+  "mcpServers": {
+    "kubernetes": {
+      "command": "docker",
+      "args": ["exec", "-i", "mcp-kubernetes", "/mcp-k8s"]
+    }
+  }
+}
+```
+
 ## Cluster Info
 
 | Parameter | Value |
