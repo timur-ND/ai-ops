@@ -23,7 +23,7 @@ services:
     tty: true
 
   mcp-kubernetes:
-    image: ghcr.io/containers/kubernetes-mcp-server:latest
+    image: ghcr.io/strowk/mcp-k8s:latest
     container_name: mcp-kubernetes
     volumes:
       # Use generated kubeconfig with limited permissions
