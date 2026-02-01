@@ -1,0 +1,33 @@
+# VMAuth Helm Chart Values
+# Chart: victoriametrics/victoria-metrics-auth
+# Docs: https://docs.victoriametrics.com/vmauth/
+
+# Auth proxy configuration
+# Routes requests to VictoriaLogs with authentication
+config:
+  users:
+    # UI access via Basic Auth
+    - username: "admin"
+      password: "CHANGE_ME_BASIC_AUTH_PASSWORD"
+      url_prefix: "http://victorialogs-victoria-logs-single-server:9428"
+
+    # MCP access via Bearer Token
+    - bearer_token: "CHANGE_ME_BEARER_TOKEN"
+      url_prefix: "http://victorialogs-victoria-logs-single-server:9428"
+
+extraArgs:
+  envflag.enable: "true"
+  envflag.prefix: VM_
+  loggerFormat: json
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+# Ingress disabled - using Gateway API HTTPRoute
+ingress:
+  enabled: false

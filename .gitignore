@@ -3,6 +3,10 @@
 .env.local
 .env.*.local
 
+# Secret values (helm)
+values.secret.yaml
+*.secret.yaml
+
 # API Keys and Secrets
 *.key
 *.pem
