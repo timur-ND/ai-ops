@@ -78,13 +78,13 @@ helm uninstall victorialogs -n monitoring
 
 ```logsql
 # VictoriaLogs own logs
-{namespace="monitoring", pod=~"victorialogs.*"}
+{kubernetes.pod_namespace="monitoring", kubernetes.pod_name=~"victorialogs.*"}
 
 # Errors only
-{namespace="monitoring", pod=~"victorialogs.*"} | filter level:"error"
+{kubernetes.pod_namespace="monitoring", kubernetes.pod_name=~"victorialogs.*"} | filter level:"error"
 
 # Ingestion issues
-{namespace="monitoring", pod=~"victorialogs.*"} | filter "insert" OR "ingest"
+{kubernetes.pod_namespace="monitoring", kubernetes.pod_name=~"victorialogs.*"} | filter "insert" OR "ingest"
 ```
 
 ### Metrics (Grafana)

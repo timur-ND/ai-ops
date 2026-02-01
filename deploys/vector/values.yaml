@@ -1,0 +1,136 @@
+role: Agent
+dataDir: "/var/lib/vector"
+
+customConfig:
+  data_dir: "/var/lib/vector"
+  api:
+    enabled: true
+    address: 0.0.0.0:8686
+
+  sources:
+    vector_metrics:
+      type: internal_metrics
+      namespace: vector
+      scrape_interval_secs: 5
+    http_server:
+      type: http_server
+      address: 0.0.0.0:80
+    k8s_logs:
+      type: kubernetes_logs
+      auto_partial_merge: true
+      self_node_name: ${VECTOR_SELF_NODE_NAME}
+
+  transforms:
+    remap_labels:
+      type: remap
+      inputs: [k8s_logs]
+      source: |
+        if exists(.message) && match!(.message, r'^\s*$') {
+          abort
+        }
+        if exists(.log) && match!(.log, r'^\s*$') {
+          abort
+        }
+        if !exists(.message) && !exists(.log) {
+          abort
+        }
+
+        if exists(.message) {
+          ._msg = .message
+        } else if exists(.log) {
+          ._msg = .log
+        } else {
+          ._msg = encode_json(.)
+        }
+
+        .labels = {}
+        .labels.namespace = .kubernetes.namespace
+        .labels.pod       = .kubernetes.pod_name
+        .labels.container = .kubernetes.container_name
+
+  sinks:
+    victorialogs:
+      type: http
+      inputs:
+        - remap_labels
+      uri: "https://victorialogs.pud.ink/insert/jsonline"
+      method: "post"
+      encoding:
+        codec: json
+      request:
+        timeout_secs: 10
+        headers:
+          Authorization: "Bearer ${VL_INSTANCE_BEARER_TOKEN}"
+      healthcheck: true
+      framing:
+        method: newline_delimited
+      buffer:
+        type: disk
+        max_size: 21474836480
+        when_full: block
+
+    prom:
+      type: prometheus_exporter
+      inputs:
+        - vector_metrics
+      address: 0.0.0.0:9598
+      flush_period_secs: 60
+      healthcheck:
+        enabled: true
+      default_namespace: vector
+
+defaultVolumes:
+  - name: var-log
+    hostPath:
+      path: /var/log/
+  - name: var-lib
+    hostPath:
+      path: /var/lib/
+  - name: procfs
+    hostPath:
+      path: /proc
+  - name: sysfs
+    hostPath:
+      path: /sys
+
+defaultVolumeMounts:
+  - name: var-log
+    mountPath: /var/log/
+    readOnly: true
+  - name: var-lib
+    mountPath: /var/lib
+    readOnly: true
+  - name: procfs
+    mountPath: /host/proc
+    readOnly: true
+  - name: sysfs
+    mountPath: /host/sys
+    readOnly: true
+
+initContainers: []
+extraContainers: []
+
+persistence:
+  enabled: true
+  existingClaim: ""
+  retentionPolicy: {}
+  accessModes:
+    - ReadWriteOnce
+  size: 10Gi
+  finalizers:
+    - kubernetes.io/pvc-protection
+  selectors: {}
+  hostPath:
+    enabled: true
+    path: /var/lib/vector
+
+env:
+  - name: VECTOR_SELF_NODE_NAME
+    valueFrom:
+      fieldRef:
+        fieldPath: spec.nodeName
+  - name: VL_INSTANCE_BEARER_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: vmauth-token
+        key: VL_INSTANCE_BEARER_TOKEN
