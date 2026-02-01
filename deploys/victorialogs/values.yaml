@@ -8,6 +8,7 @@ server:
   persistentVolume:
     enabled: true
     size: 50Gi
+    storageClassName: openebs-hostpath
 
   resources:
     requests:
@@ -17,15 +18,9 @@ server:
       cpu: 1000m
       memory: 1Gi
 
+  # Ingress disabled - using Gateway API HTTPRoute instead
   ingress:
-    enabled: true
-    ingressClassName: contour
-    hosts:
-      - name: victorialogs.pud.ink
-        path: /
-    tls:
-      - hosts:
-          - victorialogs.pud.ink
+    enabled: false
 
 fluent-bit:
   enabled: true

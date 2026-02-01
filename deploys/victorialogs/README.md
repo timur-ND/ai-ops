@@ -25,11 +25,15 @@ helm repo update
 ```bash
 kubectl config use-context pudink
 
+# Install helm chart
 helm upgrade --install victorialogs victoriametrics/victoria-logs-single \
   -n monitoring \
   -f values.yaml \
   --version 0.8.3 \
   --create-namespace
+
+# Apply HTTPRoute for Gateway API
+kubectl apply -f httproute.yaml
 ```
 
 ## Upgrade
@@ -42,6 +46,9 @@ helm upgrade victorialogs victoriametrics/victoria-logs-single \
   -n monitoring \
   -f values.yaml \
   --version <NEW_VERSION>
+
+# Re-apply HTTPRoute if service name changed
+kubectl apply -f httproute.yaml
 ```
 
 ## Rollback
