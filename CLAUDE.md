@@ -6,6 +6,7 @@ This repository contains Kubernetes deployment configurations for the `pudink` c
 
 - **kubernetes** - Query and manage K8s resources
 - **victorialogs** - Query logs stored in VictoriaLogs
+- **grafana** - Query dashboards and metrics (TODO)
 
 ## Repository Structure
 
@@ -25,13 +26,22 @@ Each deploy folder contains:
 
 ### /deploy
 
-Upgrade an application to a new version with full verification workflow.
+Upgrade an application to a new version with GitOps workflow and MCP verification.
 
 ```
 /deploy <app-name> <version>
 ```
 
-See `.claude/commands/deploy.md` for full workflow.
+Features:
+- Auto-detect folder structure (`deploys/`, `clusters/<cluster>/`, `apps/`)
+- Pre-flight checks via K8s MCP
+- Create branch & PR
+- Helm upgrade with rollout wait
+- Verify via K8s MCP, VictoriaLogs MCP, Grafana MCP
+- Auto-rollback on failure
+- PR status comments
+
+See `.claude/skills/deploy/SKILL.md` for full workflow.
 
 ## LogsQL Reference
 
