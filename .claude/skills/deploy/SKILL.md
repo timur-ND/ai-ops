@@ -9,6 +9,7 @@ allowed-tools:
   - Bash(helm *)
   - Bash(kubectl *)
   - Bash(curl *)
+  - Bash(sleep *)
   - mcp__kubernetes__*
   - mcp__victorialogs__*
   - mcp__grafana__*
@@ -17,6 +18,8 @@ allowed-tools:
 # Deploy Workflow
 
 Upgrade a Kubernetes application with GitOps workflow and MCP-based verification.
+
+**This is a user-level skill** - place in `~/.claude/skills/deploy/SKILL.md` to use across all repos.
 
 ## Arguments
 
@@ -39,16 +42,28 @@ Read `README.md` to get:
 
 ## Step 2: Pre-flight Checks
 
-Use **Kubernetes MCP** to verify current state:
+### Kubernetes MCP
 ```
 mcp__kubernetes__list-k8s-resources (kind: Pod/Deployment/StatefulSet)
 mcp__kubernetes__get-k8s-resource (get current image version)
 ```
 
+### Grafana MCP (if available)
+Search for relevant dashboards to use after deploy:
+```
+mcp__grafana__search_dashboards - search with patterns:
+  - "<namespace>" or "<app-name>"
+  - "ingress", "contour" (HTTP metrics)
+  - "pod", "deployment", "namespace" (resource usage)
+```
+
+Save dashboard UIDs for post-deploy metrics collection.
+
 Confirm:
 - [ ] App exists in cluster
 - [ ] Pods are healthy before upgrade
 - [ ] Note current version for rollback
+- [ ] Found relevant Grafana dashboards
 
 ## Step 3: Create Branch & PR
 
@@ -72,6 +87,7 @@ gh pr create --title "Upgrade <app-name> to <version>" --body "## Summary
 - [ ] Pod running
 - [ ] Health check OK
 - [ ] No errors in logs
+- [ ] Metrics OK (Grafana)
 
 🤖 Generated with Claude Code"
 ```
@@ -95,29 +111,68 @@ kubectl rollout status statefulset/<name> -n <namespace> --timeout=300s
 
 ## Step 5: Verify with MCP
 
-### Kubernetes MCP
+### 5.1 Kubernetes MCP
 ```
 mcp__kubernetes__get-k8s-resource - verify new image
-mcp__kubernetes__get-k8s-pod-logs - check for errors
+mcp__kubernetes__get-k8s-pod-logs - check for errors (last 100 lines)
 mcp__kubernetes__list-k8s-events - check for warnings
 ```
 
-### VictoriaLogs MCP (if available)
+### 5.2 VictoriaLogs MCP (if available)
 ```logsql
 {kubernetes.pod_namespace="<namespace>", kubernetes.pod_name=~"<app>.*"}
 | filter level:"error" OR level:"warn"
 | limit 50
 ```
 
-### Grafana MCP (if available)
-```
-# TODO: Check dashboard for app metrics
-# - Error rate
-# - Latency p99
-# - Resource usage
+### 5.3 Wait for Metrics Collection
+```bash
+# Wait 60 seconds for metrics to be collected
+sleep 60
 ```
 
-### Health Endpoint (if available)
+### 5.4 Grafana MCP (if available)
+
+Query dashboards found in Step 2 for post-deploy metrics:
+
+**Search dashboards by pattern:**
+```
+mcp__grafana__search_dashboards with queries:
+- "ingress" or "contour" - for HTTP status codes, request rates
+- "pod" or "deployment" - for CPU/memory usage
+- "namespace" - for namespace-level metrics
+- "<app-name>" - for app-specific dashboards
+```
+
+**Get dashboard details:**
+```
+mcp__grafana__get_dashboard_by_uid - get panels and queries
+```
+
+**Query Prometheus datasource directly:**
+```
+mcp__grafana__query_prometheus with queries:
+
+# CPU usage (last 5 min)
+sum(rate(container_cpu_usage_seconds_total{namespace="<namespace>", pod=~"<app>.*"}[5m])) by (pod)
+
+# Memory usage
+sum(container_memory_working_set_bytes{namespace="<namespace>", pod=~"<app>.*"}) by (pod)
+
+# HTTP request rate (if ingress exists)
+sum(rate(envoy_cluster_upstream_rq_total{envoy_cluster_name=~".*<app>.*"}[5m])) by (envoy_response_code_class)
+
+# HTTP error rate
+sum(rate(envoy_cluster_upstream_rq_xx{envoy_cluster_name=~".*<app>.*", envoy_response_code_class="5"}[5m]))
+```
+
+Collect metrics for PR comment:
+- CPU usage (cores)
+- Memory usage (Mi/Gi)
+- HTTP 2xx/4xx/5xx rates (if applicable)
+- Request latency p50/p99 (if applicable)
+
+### 5.5 Health Endpoint (if available)
 ```bash
 curl -s <health-url>
 ```
@@ -128,6 +183,7 @@ curl -s <health-url>
 ```bash
 gh pr comment <pr-number> --body "## ✅ Upgrade Verified
 
+### Pod Status
 | Check | Status |
 |-------|--------|
 | Pod | \`<pod-name>\` |
@@ -135,8 +191,24 @@ gh pr comment <pr-number> --body "## ✅ Upgrade Verified
 | Status | Running |
 | Ready | True |
 | Restarts | 0 |
-| Health | OK |
-| Logs | No errors |
+
+### Resource Usage (post-deploy)
+| Metric | Value |
+|--------|-------|
+| CPU | \`<cpu>m\` |
+| Memory | \`<memory>Mi\` |
+
+### HTTP Metrics (if applicable)
+| Code Class | Rate (req/s) |
+|------------|--------------|
+| 2xx | \`<rate>\` |
+| 4xx | \`<rate>\` |
+| 5xx | \`<rate>\` |
+
+### Verification
+- ✅ Health endpoint OK
+- ✅ No errors in logs
+- ✅ Metrics within normal range
 
 **Ready to merge.**
 
@@ -187,10 +259,20 @@ Ask user:
 
 ## Reference
 
+### Required MCP Servers
+
+This skill uses these MCP servers (configure at user level):
+
+| MCP Server | Purpose | Required |
+|------------|---------|----------|
+| kubernetes | Pod status, logs, events | Yes |
+| victorialogs | Log queries | Optional |
+| grafana | Metrics dashboards | Optional |
+
 ### Folder Structure Patterns
 
 ```
-# Single cluster (this repo)
+# Single cluster
 deploys/
 ├── vector/
 ├── victorialogs/
@@ -233,6 +315,27 @@ Each app folder must have README.md with:
 
 | Date | Version | Changed By | Notes |
 |------|---------|------------|-------|
+```
+
+### Grafana Dashboard Patterns
+
+Search for dashboards matching these patterns for metrics:
+- `*ingress*` / `*contour*` - HTTP traffic metrics
+- `*pod*` / `*deployment*` - Resource usage
+- `*namespace*` - Namespace-level overview
+- `<app-name>` - App-specific dashboards
+
+### Common Prometheus Queries
+
+```promql
+# CPU usage
+sum(rate(container_cpu_usage_seconds_total{namespace="X", pod=~"app.*"}[5m])) by (pod)
+
+# Memory usage
+sum(container_memory_working_set_bytes{namespace="X", pod=~"app.*"}) by (pod)
+
+# HTTP request rate by status
+sum(rate(envoy_cluster_upstream_rq_total{envoy_cluster_name=~".*app.*"}[5m])) by (envoy_response_code_class)
 ```
 
 ### LogsQL Fields
