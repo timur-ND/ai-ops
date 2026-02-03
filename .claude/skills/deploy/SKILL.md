@@ -10,6 +10,7 @@ allowed-tools:
   - Bash(kubectl *)
   - Bash(curl *)
   - Bash(sleep *)
+  - Bash(sops *)
   - mcp__kubernetes__*
   - mcp__victorialogs__*
   - mcp__grafana__*
@@ -26,6 +27,49 @@ Upgrade a Kubernetes application with GitOps workflow and MCP-based verification
 - `$ARGUMENTS` = `<app-name> <version>`
 - Example: `/deploy victorialogs 0.12.0`
 
+## SOPS Encrypted Files Support
+
+This skill supports SOPS-encrypted values files (e.g., `values.secret.yaml`).
+
+### Detection
+Look for encrypted files in the app folder:
+- Files with `.sops.yaml` config or containing `sops:` metadata
+- Common patterns: `values.secret.yaml`, `secrets.yaml`, `*.enc.yaml`
+
+Check if file is encrypted:
+```bash
+# File is encrypted if it contains sops metadata
+grep -q "sops:" <file> && echo "encrypted"
+```
+
+### Decryption Strategy
+1. **Try default key first** (from environment or default keyring):
+   ```bash
+   sops -d <file> > <file>.dec
+   ```
+
+2. **If default fails, use age key**:
+   ```bash
+   SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt sops -d <file> > <file>.dec
+   ```
+
+3. **Use decrypted file with helm**:
+   ```bash
+   helm upgrade ... -f values.yaml -f values.secret.yaml.dec
+   ```
+
+### Re-encryption After Changes
+If values files were modified during upgrade:
+```bash
+# Re-encrypt with same settings
+sops -e <file>.dec > <file>
+# or with age key
+SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt sops -e <file>.dec > <file>
+
+# Clean up decrypted file
+rm <file>.dec
+```
+
 ## Step 1: Discover Application
 
 Find the app in one of these locations (check in order):
@@ -39,6 +83,18 @@ Read `README.md` to get:
 - Release name
 - Namespace
 - K8s context
+
+### Detect Encrypted Files
+Check for SOPS-encrypted files in the app folder:
+```bash
+# Find potential encrypted files
+ls <app-folder>/*.secret.yaml <app-folder>/secrets.yaml <app-folder>/*.enc.yaml 2>/dev/null
+
+# Verify if file is SOPS-encrypted
+grep -l "sops:" <app-folder>/*.yaml 2>/dev/null
+```
+
+Note any encrypted files found for Step 4.
 
 ## Step 2: Pre-flight Checks
 
@@ -94,6 +150,21 @@ gh pr create --title "Upgrade <app-name> to <version>" --body "## Summary
 
 ## Step 4: Apply Helm Upgrade
 
+### 4.1 Decrypt SOPS Files (if present)
+
+If encrypted files were found in Step 1:
+
+```bash
+# Try default key first
+sops -d <app-folder>/values.secret.yaml > <app-folder>/values.secret.yaml.dec
+
+# If fails with "could not decrypt", use age key
+SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt sops -d <app-folder>/values.secret.yaml > <app-folder>/values.secret.yaml.dec
+```
+
+### 4.2 Run Helm Upgrade
+
+**Without encrypted files:**
 ```bash
 helm upgrade <release-name> <chart> \
   -n <namespace> \
@@ -102,7 +173,25 @@ helm upgrade <release-name> <chart> \
   --kube-context <context>
 ```
 
-Wait for rollout:
+**With encrypted files:**
+```bash
+helm upgrade <release-name> <chart> \
+  -n <namespace> \
+  -f <app-folder>/values.yaml \
+  -f <app-folder>/values.secret.yaml.dec \
+  --version <version> \
+  --kube-context <context>
+```
+
+### 4.3 Clean Up Decrypted Files
+
+```bash
+# Remove decrypted files immediately after helm upgrade
+rm -f <app-folder>/*.dec
+```
+
+### 4.4 Wait for Rollout
+
 ```bash
 kubectl rollout status deployment/<name> -n <namespace> --timeout=300s
 # or for StatefulSet:
@@ -355,4 +444,63 @@ helm history <release> -n <namespace>
 
 # Get current values
 helm get values <release> -n <namespace>
+```
+
+### SOPS Commands Reference
+
+```bash
+# Check if file is encrypted
+grep -q "sops:" <file> && echo "encrypted"
+
+# Decrypt with default key
+sops -d <file> > <file>.dec
+
+# Decrypt with age key (fallback)
+SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt sops -d <file> > <file>.dec
+
+# Edit encrypted file in-place (decrypts, opens editor, re-encrypts)
+sops <file>
+# or with age key
+SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt sops <file>
+
+# Encrypt a new file (requires .sops.yaml config in repo root)
+sops -e <plaintext-file> > <encrypted-file>
+
+# Re-encrypt with age key
+SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt sops -e <plaintext-file> > <encrypted-file>
+
+# Rotate keys (useful after key changes)
+sops updatekeys <file>
+```
+
+### SOPS Key Locations
+
+| Key Type | Default Location |
+|----------|------------------|
+| Age | `~/.config/sops/age/keys.txt` |
+| PGP | GPG keyring |
+| AWS KMS | AWS credentials |
+| GCP KMS | GCP credentials |
+
+### Encrypted File Patterns
+
+Common naming conventions:
+- `values.secret.yaml` - Helm secret values
+- `secrets.yaml` - Generic secrets
+- `*.enc.yaml` - Encrypted YAML
+- `*.sops.yaml` - SOPS-encrypted files
+
+### Modifying Encrypted Values
+
+If you need to modify an encrypted values file:
+
+```bash
+# Option 1: Edit in-place (recommended)
+SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt sops <app-folder>/values.secret.yaml
+
+# Option 2: Decrypt, edit, re-encrypt
+SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt sops -d values.secret.yaml > values.secret.yaml.dec
+# ... make changes to values.secret.yaml.dec ...
+SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt sops -e values.secret.yaml.dec > values.secret.yaml
+rm values.secret.yaml.dec
 ```

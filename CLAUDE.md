@@ -37,6 +37,7 @@ Features:
 - Pre-flight checks via K8s MCP
 - Create branch & PR
 - Helm upgrade with rollout wait
+- **SOPS support** for encrypted values files (auto-decrypt/re-encrypt)
 - Verify via K8s MCP, VictoriaLogs MCP, Grafana MCP
 - Auto-rollback on failure
 - PR status comments with metrics (CPU/mem/HTTP)
@@ -139,7 +140,27 @@ Each app folder must follow this structure:
 |------|---------|------------|-------|
 ```
 
-### 4. Supported folder structures
+### 4. SOPS setup (optional)
+
+For encrypted values files (`values.secret.yaml`), configure age key:
+
+```bash
+# Create age key directory
+mkdir -p ~/.config/sops/age
+
+# Generate new age key (if needed)
+age-keygen -o ~/.config/sops/age/keys.txt
+
+# Or copy existing key
+cp /path/to/age/keys.txt ~/.config/sops/age/keys.txt
+```
+
+The skill will:
+1. Try default SOPS key first
+2. Fall back to `SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt`
+3. Decrypt before helm upgrade, clean up after
+
+### 5. Supported folder structures
 
 ```
 # Single cluster (this repo style)
