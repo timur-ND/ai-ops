@@ -27,19 +27,20 @@ Upgrade a Kubernetes application with GitOps workflow and MCP-based verification
 - `$ARGUMENTS` = `<app-name> <version>`
 - Example: `/deploy victorialogs 0.12.0`
 
+## Important Constraints
+
+**Tool naming:** When invoking tools, ALWAYS use short constant tool names (max 20 characters).
+Do NOT dynamically generate tool names. This prevents API errors.
+
 ## SOPS Encrypted Files Support
 
-This skill supports SOPS-encrypted values files (e.g., `values.secret.yaml`).
+This skill supports SOPS-encrypted values files. Encrypted files can have ANY extension (`.yaml`, `.yml`, etc.) - detection is based on file **content**, not filename.
 
 ### Detection
-Look for encrypted files in the app folder:
-- Files with `.sops.yaml` config or containing `sops:` metadata
-- Common patterns: `values.secret.yaml`, `secrets.yaml`, `*.enc.yaml`
-
-Check if file is encrypted:
+SOPS-encrypted files contain `sops:` metadata block inside. Check ALL yaml files:
 ```bash
-# File is encrypted if it contains sops metadata
-grep -q "sops:" <file> && echo "encrypted"
+# Find ALL SOPS-encrypted files by content (not by extension)
+grep -l "sops:" <app-folder>/*.yaml <app-folder>/*.yml 2>/dev/null
 ```
 
 ### Decryption Strategy
@@ -85,13 +86,10 @@ Read `README.md` to get:
 - K8s context
 
 ### Detect Encrypted Files
-Check for SOPS-encrypted files in the app folder:
+Check for SOPS-encrypted files by content (not by extension):
 ```bash
-# Find potential encrypted files
-ls <app-folder>/*.secret.yaml <app-folder>/secrets.yaml <app-folder>/*.enc.yaml 2>/dev/null
-
-# Verify if file is SOPS-encrypted
-grep -l "sops:" <app-folder>/*.yaml 2>/dev/null
+# Find ALL SOPS-encrypted yaml files by checking content
+grep -l "sops:" <app-folder>/*.yaml <app-folder>/*.yml 2>/dev/null
 ```
 
 Note any encrypted files found for Step 4.
@@ -449,8 +447,11 @@ helm get values <release> -n <namespace>
 ### SOPS Commands Reference
 
 ```bash
-# Check if file is encrypted
+# Check if file is encrypted (by content, not extension)
 grep -q "sops:" <file> && echo "encrypted"
+
+# Find all encrypted files in folder
+grep -l "sops:" *.yaml *.yml 2>/dev/null
 
 # Decrypt with default key
 sops -d <file> > <file>.dec
@@ -482,13 +483,25 @@ sops updatekeys <file>
 | AWS KMS | AWS credentials |
 | GCP KMS | GCP credentials |
 
-### Encrypted File Patterns
+### Encrypted File Detection
 
-Common naming conventions:
+**IMPORTANT:** Encrypted files can have ANY extension. Detection is by **content**, not filename.
+
+SOPS-encrypted files contain a `sops:` metadata block at the end:
+```yaml
+sops:
+    kms: []
+    age:
+        - recipient: age1...
+          enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            ...
+```
+
+Common naming conventions (but not required):
 - `values.secret.yaml` - Helm secret values
 - `secrets.yaml` - Generic secrets
-- `*.enc.yaml` - Encrypted YAML
-- `*.sops.yaml` - SOPS-encrypted files
+- Any `.yaml` or `.yml` file can be encrypted
 
 ### Modifying Encrypted Values
 
