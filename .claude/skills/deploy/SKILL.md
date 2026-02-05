@@ -92,9 +92,36 @@ Check for SOPS-encrypted files by content (not by extension):
 grep -l "sops:" <app-folder>/*.yaml <app-folder>/*.yml 2>/dev/null
 ```
 
-Note any encrypted files found for Step 4.
+Note any encrypted files found for Step 5.
 
-## Step 2: Pre-flight Checks
+## Step 2: Validate Context
+
+**CRITICAL:** Before any kubectl/helm operations, validate the context matches the app's target cluster.
+
+### Check Available Contexts
+```bash
+kubectl config get-contexts
+```
+
+### Validate Context Exists
+```bash
+# Verify the context from README exists in kubeconfig
+kubectl config get-contexts <context-from-readme> --no-headers
+```
+
+If context doesn't exist:
+- **STOP** and inform user
+- Show available contexts
+- Ask user to fix kubeconfig or README
+
+### Verify Cluster Connectivity
+```bash
+kubectl cluster-info --context <context>
+```
+
+If connection fails, **STOP** and report the error.
+
+## Step 3: Pre-flight Checks
 
 ### Kubernetes MCP
 ```
@@ -136,13 +163,14 @@ mcp__grafana__search_dashboards - search with patterns:
 Save dashboard UIDs for post-deploy metrics collection.
 
 Confirm:
+- [ ] Context validated and connected
 - [ ] App exists in cluster
 - [ ] Pods are healthy before upgrade
 - [ ] Note current version for rollback
 - [ ] Found Ingress/HTTPRoute endpoint (if exists)
 - [ ] Found relevant Grafana dashboards
 
-## Step 3: Create Branch & PR
+## Step 4: Create Branch & PR
 
 ```bash
 git checkout -b upgrade/<app-name>-<version>
@@ -169,9 +197,32 @@ gh pr create --title "Upgrade <app-name> to <version>" --body "## Summary
 🤖 Generated with Claude Code"
 ```
 
-## Step 4: Apply Helm Upgrade
+## Step 5: Wait for PR Approval
 
-### 4.1 Decrypt SOPS Files (if present)
+**CRITICAL:** Do NOT proceed with helm upgrade until PR is approved.
+
+### Check PR Approval Status
+```bash
+gh pr view <pr-number> --json reviewDecision,reviews
+```
+
+### Wait for Approval
+Poll until PR has at least one approval:
+```bash
+# Check if approved
+gh pr view <pr-number> --json reviewDecision -q '.reviewDecision'
+# Expected: "APPROVED"
+```
+
+If not approved:
+- Inform user: "PR requires approval before deployment. Please review and approve the PR, then run `/deploy` again or say 'continue'."
+- **STOP** and wait for user instruction
+
+Once approved, proceed to Step 6.
+
+## Step 6: Helm Diff & Upgrade
+
+### 6.1 Decrypt SOPS Files (if present)
 
 If encrypted files were found in Step 1:
 
@@ -183,7 +234,44 @@ sops -d <app-folder>/values.secret.yaml > <app-folder>/values.secret.yaml.dec
 SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt sops -d <app-folder>/values.secret.yaml > <app-folder>/values.secret.yaml.dec
 ```
 
-### 4.2 Run Helm Upgrade
+### 6.2 Helm Diff (Preview Changes)
+
+**IMPORTANT:** Show what will change before applying.
+
+Install helm-diff plugin if not available:
+```bash
+helm plugin install https://github.com/databus23/helm-diff
+```
+
+Run diff to preview changes:
+
+**Without encrypted files:**
+```bash
+helm diff upgrade <release-name> <chart> \
+  -n <namespace> \
+  -f <app-folder>/values.yaml \
+  --version <version> \
+  --kube-context <context>
+```
+
+**With encrypted files:**
+```bash
+helm diff upgrade <release-name> <chart> \
+  -n <namespace> \
+  -f <app-folder>/values.yaml \
+  -f <app-folder>/values.secret.yaml.dec \
+  --version <version> \
+  --kube-context <context>
+```
+
+**Review the diff output:**
+- Show user the changes (added/removed/modified resources)
+- Highlight any potentially breaking changes (removed fields, changed ports, etc.)
+- Ask user to confirm: "Proceed with upgrade? (yes/no)"
+
+If user says no, **STOP** and clean up decrypted files.
+
+### 6.3 Run Helm Upgrade
 
 **Without encrypted files:**
 ```bash
@@ -204,14 +292,14 @@ helm upgrade <release-name> <chart> \
   --kube-context <context>
 ```
 
-### 4.3 Clean Up Decrypted Files
+### 6.4 Clean Up Decrypted Files
 
 ```bash
 # Remove decrypted files immediately after helm upgrade
 rm -f <app-folder>/*.dec
 ```
 
-### 4.4 Wait for Rollout
+### 6.5 Wait for Rollout
 
 ```bash
 kubectl rollout status deployment/<name> -n <namespace> --timeout=300s
@@ -219,31 +307,31 @@ kubectl rollout status deployment/<name> -n <namespace> --timeout=300s
 kubectl rollout status statefulset/<name> -n <namespace> --timeout=300s
 ```
 
-## Step 5: Verify with MCP
+## Step 7: Verify with MCP
 
-### 5.1 Kubernetes MCP
+### 7.1 Kubernetes MCP
 ```
 mcp__kubernetes__get-k8s-resource - verify new image
 mcp__kubernetes__get-k8s-pod-logs - check for errors (last 100 lines)
 mcp__kubernetes__list-k8s-events - check for warnings
 ```
 
-### 5.2 VictoriaLogs MCP (if available)
+### 7.2 VictoriaLogs MCP (if available)
 ```logsql
 {kubernetes.pod_namespace="<namespace>", kubernetes.pod_name=~"<app>.*"}
 | filter level:"error" OR level:"warn"
 | limit 50
 ```
 
-### 5.3 Wait for Metrics Collection
+### 7.3 Wait for Metrics Collection
 ```bash
 # Wait 60 seconds for metrics to be collected
 sleep 60
 ```
 
-### 5.4 Grafana MCP (if available)
+### 7.4 Grafana MCP (if available)
 
-Query dashboards found in Step 2 for post-deploy metrics:
+Query dashboards found in Step 3 for post-deploy metrics:
 
 **Search dashboards by pattern:**
 ```
@@ -282,9 +370,9 @@ Collect metrics for PR comment:
 - HTTP 2xx/4xx/5xx rates (if applicable)
 - Request latency p50/p99 (if applicable)
 
-### 5.5 HTTP Endpoint Check (if Ingress/HTTPRoute found)
+### 7.5 HTTP Endpoint Check (if Ingress/HTTPRoute found)
 
-If an Ingress or HTTPRoute was discovered in Step 2, verify the endpoint is responding:
+If an Ingress or HTTPRoute was discovered in Step 3, verify the endpoint is responding:
 
 ```bash
 # Check health/root endpoint
@@ -302,7 +390,7 @@ Record:
 
 If endpoint returns non-2xx, this may indicate a problem (but don't auto-rollback - some apps need warm-up time).
 
-## Step 6: Update PR
+## Step 8: Update PR
 
 ### On Success ✅
 ```bash
@@ -381,7 +469,7 @@ gh pr comment <pr-number> --body "## ❌ Upgrade Failed - ROLLED BACK
 🤖 Rolled back by Claude Code"
 ```
 
-## Step 7: Merge or Close
+## Step 9: Merge or Close
 
 Ask user:
 - **Success**: Merge PR? `gh pr merge <pr-number> --merge --delete-branch`

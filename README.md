@@ -255,6 +255,93 @@ The skill uses Kubernetes MCP for pre-flight checks and post-deploy verification
 - Get pod logs (last 100 lines) for errors
 - List events for warnings
 
+## Multi-Cluster Setup
+
+For managing deployments across multiple Kubernetes clusters.
+
+### 1. Apply RBAC to each cluster
+
+```bash
+# For each cluster context
+kubectl apply -f k8s-mcp-rbac.yaml --context production
+kubectl apply -f k8s-mcp-rbac.yaml --context staging
+kubectl apply -f k8s-mcp-rbac.yaml --context dev
+```
+
+### 2. Generate merged kubeconfig
+
+**Option A: Single cluster (simple)**
+```bash
+./generate-kubeconfig.sh production
+# Output: kubeconfig-ai-ops.yaml
+```
+
+**Option B: Multiple clusters (merged)**
+```bash
+./generate-kubeconfig-multi.sh production staging dev
+# Output: kubeconfig-ai-ops-multi.yaml
+```
+
+The merged kubeconfig contains all clusters with their original context names. Each context has:
+- **Read-only** access to entire cluster
+- **Full access** to `monitoring` namespace
+
+### 3. Configure MCP with merged kubeconfig
+
+Update `~/.claude.json` to use the merged kubeconfig:
+
+```json
+{
+  "mcpServers": {
+    "kubernetes": {
+      "type": "stdio",
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "-v", "/path/to/kubeconfig-ai-ops-multi.yaml:/home/nonroot/.kube/config:ro",
+        "mcpk8s/server:latest"
+      ],
+      "env": {}
+    }
+  }
+}
+```
+
+### 4. App README context
+
+For multi-cluster repos, each app's README specifies which cluster to deploy to:
+
+```markdown
+## Cluster Info
+
+| Parameter | Value |
+|-----------|-------|
+| **Context** | `production` |  <!-- Must match context in kubeconfig -->
+| **Namespace** | `monitoring` |
+```
+
+The skill validates that the context exists before deploying.
+
+### RBAC Permissions
+
+| Scope | Access Level | Resources |
+|-------|--------------|-----------|
+| Cluster-wide | Read-only | pods, deployments, services, ingresses, events, httproutes |
+| `monitoring` namespace | Full | All resources (for helm operations) |
+
+To add more namespaces with full access, edit `k8s-mcp-rbac.yaml`:
+
+```yaml
+# Add RoleBinding for each namespace
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ai-ops-full-access
+  namespace: my-other-namespace  # Add namespace here
+...
+```
+
 ## Workflow
 
 See `.claude/skills/deploy/SKILL.md` for the full workflow documentation.
