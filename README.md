@@ -61,7 +61,7 @@ Add to `~/.claude.json`:
       "command": "docker",
       "args": [
         "run", "-i", "--rm",
-        "--env-file", "/path/to/.env",
+        "--env-file", "~/.claude/mcp.env",
         "ghcr.io/victoriametrics-community/mcp-victorialogs:latest"
       ],
       "env": {}
@@ -71,7 +71,7 @@ Add to `~/.claude.json`:
       "command": "docker",
       "args": [
         "run", "-i", "--rm",
-        "--env-file", "/path/to/.env",
+        "--env-file", "~/.claude/mcp.env",
         "grafana/mcp-grafana",
         "-t", "stdio"
       ],
@@ -184,6 +184,44 @@ Query logs using VictoriaLogs MCP:
 # Search text
 ... | filter "connection refused"
 ```
+
+## Grafana MCP
+
+The skill searches for dashboards matching these patterns to collect post-deploy metrics:
+
+| Pattern | Purpose |
+|---------|---------|
+| `*ingress*`, `*contour*` | HTTP traffic (request rate, status codes, latency) |
+| `*pod*`, `*deployment*` | Resource usage (CPU, memory) |
+| `*namespace*` | Namespace-level overview |
+| `<app-name>` | App-specific dashboards |
+
+Prometheus queries used:
+```promql
+# CPU usage
+sum(rate(container_cpu_usage_seconds_total{namespace="X", pod=~"app.*"}[5m])) by (pod)
+
+# Memory usage
+sum(container_memory_working_set_bytes{namespace="X", pod=~"app.*"}) by (pod)
+
+# HTTP request rate by status
+sum(rate(envoy_cluster_upstream_rq_total{envoy_cluster_name=~".*app.*"}[5m])) by (envoy_response_code_class)
+```
+
+## Kubernetes MCP
+
+The skill uses Kubernetes MCP for pre-flight checks and post-deploy verification:
+
+**Pre-flight (before upgrade):**
+- List pods/deployments to verify app exists
+- Get current image version for rollback reference
+- Check pod health status
+
+**Post-deploy (after upgrade):**
+- Verify new image version is running
+- Check pod status (Running, Ready, Restarts)
+- Get pod logs (last 100 lines) for errors
+- List events for warnings
 
 ## Workflow
 
