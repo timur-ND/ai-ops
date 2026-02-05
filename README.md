@@ -22,11 +22,43 @@ mkdir -p ~/.claude/skills/deploy
 cp .claude/skills/deploy/SKILL.md ~/.claude/skills/deploy/
 ```
 
-### 2. Configure MCP servers
+### 2. Setup Kubernetes access
 
-Add MCP servers to `~/.claude.json` under the `mcpServers` key. Docker containers start automatically when Claude Code launches.
+Generate a limited kubeconfig for the MCP server:
 
-Create an `.env` file with credentials:
+```bash
+# Apply RBAC (read-only cluster-wide, full access to specific namespace)
+kubectl apply -f k8s-mcp-rbac.yaml
+
+# Generate kubeconfig with token (valid for 1 year)
+./generate-kubeconfig.sh [context-name]
+```
+
+This creates `kubeconfig-ai-ops.yaml` with:
+- **Read-only** access to entire cluster (pods, deployments, services, ingresses)
+- **Full access** to `monitoring` namespace (for helm operations)
+
+To add more namespaces with full access, edit `k8s-mcp-rbac.yaml`.
+
+### 3. Configure MCP servers
+
+**Option A: Auto-start with Claude Code (recommended)**
+
+Add MCP servers to `~/.claude.json`. Docker containers start automatically when Claude Code launches.
+
+**Option B: Manual start with docker-compose**
+
+If you prefer to manage containers separately:
+
+```bash
+docker-compose up -d
+```
+
+Then configure Claude to connect to running containers (see `docker-compose.yml`).
+
+---
+
+**For Option A**, create an `.env` file with credentials:
 
 ```bash
 # ~/.claude/mcp.env
@@ -87,7 +119,7 @@ Add to `~/.claude.json`:
 | victorialogs | Log queries | Optional |
 | grafana | Metrics dashboards | Optional |
 
-### 3. App README.md format (optional)
+### 4. App README.md format (optional)
 
 Each app folder should have a `README.md` with deployment metadata. The skill will auto-generate this file if missing, or you can create it manually following this format:
 
@@ -109,7 +141,7 @@ Each app folder should have a `README.md` with deployment metadata. The skill wi
 |------|---------|------------|-------|
 ```
 
-### 4. SOPS setup (optional)
+### 5. SOPS setup (optional)
 
 For encrypted values files (`values.secret.yaml`), configure age key:
 
