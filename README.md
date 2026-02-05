@@ -87,7 +87,7 @@ Add to `~/.claude.json`:
 | victorialogs | Log queries | Optional |
 | grafana | Metrics dashboards | Optional |
 
-### 3. App README.md format
+### 3. App README.md format (optional)
 
 Each app folder should have a `README.md` with deployment metadata. The skill will auto-generate this file if missing, or you can create it manually following this format:
 

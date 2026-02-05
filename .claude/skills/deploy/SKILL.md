@@ -102,6 +102,28 @@ mcp__kubernetes__list-k8s-resources (kind: Pod/Deployment/StatefulSet)
 mcp__kubernetes__get-k8s-resource (get current image version)
 ```
 
+### Discover HTTP Endpoint (Kubernetes MCP)
+
+Search for Ingress or HTTPRoute associated with the app:
+
+```
+# Check for Ingress
+mcp__kubernetes__list-k8s-resources (kind: Ingress, namespace: <namespace>)
+
+# Check for HTTPRoute (Gateway API)
+mcp__kubernetes__list-k8s-resources (kind: HTTPRoute, namespace: <namespace>)
+```
+
+Look for resources that:
+- Have name matching `<app-name>` or `*<app-name>*`
+- Reference a service with name matching `<app-name>`
+
+Extract the hostname from:
+- **Ingress:** `spec.rules[].host`
+- **HTTPRoute:** `spec.hostnames[]`
+
+Save the URL (e.g., `https://<hostname>/health` or `https://<hostname>/`) for post-deploy verification.
+
 ### Grafana MCP (if available)
 Search for relevant dashboards to use after deploy:
 ```
@@ -117,6 +139,7 @@ Confirm:
 - [ ] App exists in cluster
 - [ ] Pods are healthy before upgrade
 - [ ] Note current version for rollback
+- [ ] Found Ingress/HTTPRoute endpoint (if exists)
 - [ ] Found relevant Grafana dashboards
 
 ## Step 3: Create Branch & PR
@@ -259,10 +282,25 @@ Collect metrics for PR comment:
 - HTTP 2xx/4xx/5xx rates (if applicable)
 - Request latency p50/p99 (if applicable)
 
-### 5.5 Health Endpoint (if available)
+### 5.5 HTTP Endpoint Check (if Ingress/HTTPRoute found)
+
+If an Ingress or HTTPRoute was discovered in Step 2, verify the endpoint is responding:
+
 ```bash
-curl -s <health-url>
+# Check health/root endpoint
+curl -s -o /dev/null -w "%{http_code}" https://<hostname>/health
+# or
+curl -s -o /dev/null -w "%{http_code}" https://<hostname>/
+
+# Get response time
+curl -s -o /dev/null -w "%{time_total}" https://<hostname>/health
 ```
+
+Record:
+- HTTP status code (expect 200 or 2xx)
+- Response time in seconds
+
+If endpoint returns non-2xx, this may indicate a problem (but don't auto-rollback - some apps need warm-up time).
 
 ## Step 6: Update PR
 
@@ -285,7 +323,14 @@ gh pr comment <pr-number> --body "## ✅ Upgrade Verified
 | CPU | \`<cpu>m\` |
 | Memory | \`<memory>Mi\` |
 
-### HTTP Metrics (if applicable)
+### HTTP Endpoint (if Ingress/HTTPRoute found)
+| Check | Result |
+|-------|--------|
+| URL | \`https://<hostname>/\` |
+| Status | \`200 OK\` |
+| Response Time | \`<time>s\` |
+
+### HTTP Traffic Metrics (from Grafana, if applicable)
 | Code Class | Rate (req/s) |
 |------------|--------------|
 | 2xx | \`<rate>\` |
@@ -293,7 +338,7 @@ gh pr comment <pr-number> --body "## ✅ Upgrade Verified
 | 5xx | \`<rate>\` |
 
 ### Verification
-- ✅ Health endpoint OK
+- ✅ HTTP endpoint responding
 - ✅ No errors in logs
 - ✅ Metrics within normal range
 
