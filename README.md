@@ -29,12 +29,21 @@ Generate a limited kubeconfig for the MCP server:
 ```bash
 # Apply RBAC (read-only cluster-wide, full access to specific namespace)
 kubectl apply -f k8s-mcp-rbac.yaml
-
-# Generate kubeconfig with token (valid for 1 year)
-./generate-kubeconfig.sh [context-name]
 ```
 
-This creates `kubeconfig-ai-ops.yaml` with:
+**Single cluster:**
+```bash
+./generate-kubeconfig.sh
+# Output: kubeconfig-ai-ops.yaml (uses current context)
+```
+
+**Multiple clusters:**
+```bash
+./generate-kubeconfig-multi.sh production staging dev
+# Output: kubeconfig-ai-ops-multi.yaml (merged config with all contexts)
+```
+
+Generated kubeconfig has:
 - **Read-only** access to entire cluster (pods, deployments, services, ingresses)
 - **Full access** to `monitoring` namespace (for helm operations)
 
@@ -163,12 +172,16 @@ The skill will:
 ## Usage
 
 ```
-/deploy <app-name> <version>
+/deploy <app-name> <version> [context]
 ```
 
-Example:
-```
+Examples:
+```bash
+# Use context from app README
 /deploy victorialogs 0.12.0
+
+# Override context (deploy to staging instead)
+/deploy victorialogs 0.12.0 staging
 ```
 
 ## Supported Folder Structures

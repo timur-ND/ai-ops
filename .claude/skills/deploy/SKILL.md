@@ -2,7 +2,7 @@
 name: deploy
 description: Upgrade Kubernetes application to a new version with full verification workflow
 disable-model-invocation: true
-argument-hint: "<app-name> <version>"
+argument-hint: "<app-name> <version> [context]"
 allowed-tools:
   - Bash(git *)
   - Bash(gh *)
@@ -24,8 +24,12 @@ Upgrade a Kubernetes application with GitOps workflow and MCP-based verification
 
 ## Arguments
 
-- `$ARGUMENTS` = `<app-name> <version>`
-- Example: `/deploy victorialogs 0.12.0`
+- `$ARGUMENTS` = `<app-name> <version> [context]`
+- Examples:
+  - `/deploy victorialogs 0.12.0` - use context from app README
+  - `/deploy victorialogs 0.12.0 staging` - override context to `staging`
+
+If context is provided as argument, it overrides the context from README.
 
 ## Important Constraints
 
@@ -83,7 +87,11 @@ Read `README.md` to get:
 - Helm chart name and repo
 - Release name
 - Namespace
-- K8s context
+- K8s context (can be overridden by argument)
+
+**Context priority:**
+1. If context passed as argument → use argument
+2. Otherwise → use context from README
 
 ### Detect Encrypted Files
 Check for SOPS-encrypted files by content (not by extension):
