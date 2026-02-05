@@ -1,100 +1,45 @@
-# AI-Ops
+# /deploy Skill for Claude Code
 
-AI-driven infrastructure deployment and monitoring for Kubernetes.
+A GitOps deployment skill for Kubernetes applications with MCP-based verification.
 
-## Structure
+## Features
 
-```
-ai-ops/
-├── deploys/                    # Helm deployments
-│   ├── prometheus/
-│   │   ├── README.md           # Install/upgrade/rollback instructions
-│   │   └── values.yaml         # Helm values
-│   ├── grafana/
-│   │   └── ...
-│   └── victorialogs/
-│       └── ...
-│
-├── k8s-mcp-rbac.yaml           # RBAC for MCP server (limited permissions)
-├── generate-kubeconfig.sh      # Script to generate kubeconfig
-├── docker-compose.yml          # MCP servers
-├── .env.example                # Environment variables template
-└── README.md
-```
+- Auto-detect folder structure (`deploys/`, `clusters/<cluster>/`, `apps/`)
+- Pre-flight checks via Kubernetes MCP
+- Create branch & PR automatically
+- Helm upgrade with rollout wait
+- **SOPS support** for encrypted values files (auto-decrypt/re-encrypt)
+- Post-deploy verification via Kubernetes, VictoriaLogs, and Grafana MCP
+- Auto-rollback on failure
+- PR status comments with metrics (CPU/mem/HTTP)
 
-## Workflow
+## Installation
 
-1. **Request:** User asks to deploy/update a service
-2. **Branch:** AI creates a feature branch
-3. **Deploy:** AI runs helm install/upgrade
-4. **Verify:** AI checks logs (VictoriaLogs) and metrics (Grafana)
-5. **PR:** AI creates PR with deployment status
-6. **Review:** Human reviews and merges
-7. **Done:** AI merges if approved
-
-## MCP Servers
-
-This repo uses MCP (Model Context Protocol) servers for AI integration:
-
-| Server | Purpose |
-|--------|---------|
-| `mcp-grafana` | Query metrics, dashboards, alerts |
-| `mcp-victorialogs` | Search and analyze logs |
-| `mcp-kubernetes` | Kubernetes operations (kubectl) |
-
-### Setup
+### 1. Copy skill to user directory
 
 ```bash
-# 1. Copy environment file
-cp .env.example .env
-nano .env  # Add Grafana/VictoriaLogs credentials
-
-# 2. Setup Kubernetes RBAC (limited permissions)
-kubectl config use-context pudink
-kubectl apply -f k8s-mcp-rbac.yaml
-
-# 3. Generate kubeconfig for MCP server
-./generate-kubeconfig.sh
-
-# 4. Start MCP servers
-docker-compose up -d
+mkdir -p ~/.claude/skills/deploy
+cp .claude/skills/deploy/SKILL.md ~/.claude/skills/deploy/
 ```
 
-### Kubernetes MCP Permissions
+### 2. Configure MCP servers
 
-| Scope | Access |
-|-------|--------|
-| Entire cluster | **Read-only** (pods, deployments, services, gateways) |
-| `monitoring` namespace | **Full** (for helm install/upgrade) |
+Add MCP servers to `~/.claude.json` under the `mcpServers` key. Docker containers start automatically when Claude Code launches.
 
-To add more namespaces with full access, add RoleBinding in `k8s-mcp-rbac.yaml`.
+Create an `.env` file with credentials:
 
-### Claude Desktop Configuration
+```bash
+# ~/.claude/mcp.env
 
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+# VictoriaLogs
+VL_INSTANCE_ENTRYPOINT=https://victorialogs.example.com
+VL_INSTANCE_BEARER_TOKEN=<token>
+VL_DEFAULT_TENANT_ID=0:0
 
-```json
-{
-  "mcpServers": {
-    "grafana": {
-      "command": "docker",
-      "args": ["exec", "-i", "mcp-grafana", "/app/mcp-grafana"]
-    },
-    "victorialogs": {
-      "command": "docker",
-      "args": ["exec", "-i", "mcp-victorialogs", "/mcp-victorialogs"]
-    },
-    "kubernetes": {
-      "command": "docker",
-      "args": ["exec", "-i", "mcp-kubernetes", "/mcp-k8s"]
-    }
-  }
-}
+# Grafana (Viewer role is sufficient)
+GRAFANA_URL=https://grafana.example.com
+GRAFANA_SERVICE_ACCOUNT_TOKEN=<token>
 ```
-
-### Claude Code (CLI) Configuration
-
-**Important:** Конфигурация MCP серверов для Claude Code должна быть в `~/.claude.json`, а не в `~/.claude/settings.json`.
 
 Add to `~/.claude.json`:
 
@@ -102,51 +47,144 @@ Add to `~/.claude.json`:
 {
   "mcpServers": {
     "kubernetes": {
+      "type": "stdio",
       "command": "docker",
-      "args": ["exec", "-i", "mcp-kubernetes", "/mcp-k8s"]
+      "args": [
+        "run", "-i", "--rm",
+        "-v", "/path/to/kubeconfig.yaml:/home/nonroot/.kube/config:ro",
+        "mcpk8s/server:latest"
+      ],
+      "env": {}
+    },
+    "victorialogs": {
+      "type": "stdio",
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "--env-file", "/path/to/.env",
+        "ghcr.io/victoriametrics-community/mcp-victorialogs:latest"
+      ],
+      "env": {}
+    },
+    "grafana": {
+      "type": "stdio",
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "--env-file", "/path/to/.env",
+        "grafana/mcp-grafana",
+        "-t", "stdio"
+      ],
+      "env": {}
     }
   }
 }
 ```
 
+| MCP Server | Purpose | Required |
+|------------|---------|----------|
+| kubernetes | Pod status, logs, events | Yes |
+| victorialogs | Log queries | Optional |
+| grafana | Metrics dashboards | Optional |
+
+### 3. App README.md format
+
+Each app folder should have a `README.md` with deployment metadata. The skill will auto-generate this file if missing, or you can create it manually following this format:
+
+```markdown
 ## Cluster Info
 
 | Parameter | Value |
 |-----------|-------|
-| **Context** | `pudink` |
-| **Gateway** | Contour |
-| **TLS** | Wildcard `*.pud.ink` |
-| **Monitoring NS** | `monitoring` |
+| **Context** | `my-cluster` |
+| **Namespace** | `monitoring` |
+| **Release Name** | `my-app` |
+| **Chart** | `repo/chart-name` |
+| **Current Version** | `1.0.0` |
+| **App Version** | `v1.0.0` |
 
-## Example Commands
+## Version History
 
-```
-# Deploy new version
-"Deploy prometheus version 25.28.0"
-
-# Check status
-"Show prometheus pod status and recent logs"
-
-# Rollback
-"Rollback grafana to previous version"
-
-# Investigate
-"Check why prometheus is using high memory"
+| Date | Version | Changed By | Notes |
+|------|---------|------------|-------|
 ```
 
-## Adding New Service
+### 4. SOPS setup (optional)
 
-1. Create folder in `deploys/<service-name>/`
-2. Add `README.md` with cluster info and commands
-3. Add `values.yaml` with helm values
-4. Commit and push
+For encrypted values files (`values.secret.yaml`), configure age key:
 
-## Environment Variables
+```bash
+mkdir -p ~/.config/sops/age
 
-| Variable | Description |
-|----------|-------------|
-| `GRAFANA_URL` | Grafana URL |
-| `GRAFANA_TOKEN` | Grafana API token |
-| `VICTORIALOGS_URL` | VictoriaLogs URL |
-| `VICTORIALOGS_TOKEN` | VictoriaLogs token |
-| `VICTORIALOGS_ACCOUNT_ID` | VictoriaLogs account (default: 0) |
+# Generate new age key (if needed)
+age-keygen -o ~/.config/sops/age/keys.txt
+
+# Or copy existing key
+cp /path/to/age/keys.txt ~/.config/sops/age/keys.txt
+```
+
+The skill will:
+1. Try default SOPS key first
+2. Fall back to `SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt`
+3. Decrypt before helm upgrade, clean up after
+
+## Usage
+
+```
+/deploy <app-name> <version>
+```
+
+Example:
+```
+/deploy victorialogs 0.12.0
+```
+
+## Supported Folder Structures
+
+```
+# Single cluster
+deploys/
+├── vector/
+├── victorialogs/
+└── vmauth/
+
+# Multi-cluster GitOps
+clusters/
+├── production/
+│   ├── vector/
+│   └── victorialogs/
+└── staging/
+    ├── vector/
+    └── victorialogs/
+
+# ArgoCD style
+apps/
+├── base/
+└── overlays/
+    ├── prod/
+    └── staging/
+```
+
+Each app folder contains:
+- `README.md` - Version info, install/upgrade commands
+- `values.yaml` - Helm values
+- Optional: `httproute.yaml`, `values.secret.yaml` (SOPS encrypted)
+
+## LogsQL Reference
+
+Query logs using VictoriaLogs MCP:
+
+```logsql
+# By namespace and pod
+{kubernetes.pod_namespace="monitoring", kubernetes.pod_name=~"vector.*"}
+
+# Filter by level
+... | filter level:"error"
+
+# Search text
+... | filter "connection refused"
+```
+
+## Workflow
+
+See `.claude/skills/deploy/SKILL.md` for the full workflow documentation.
