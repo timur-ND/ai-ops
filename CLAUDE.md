@@ -1,76 +1,19 @@
-# AI-Ops Project Instructions
+# /deploy Skill for Claude Code
 
-This repository contains Kubernetes deployment configurations for the `pudink` cluster.
+A GitOps deployment skill for Kubernetes applications with MCP-based verification.
 
-## MCP Servers Available
+## Features
 
-- **kubernetes** - Query and manage K8s resources
-- **victorialogs** - Query logs stored in VictoriaLogs
-- **grafana** - Query dashboards and metrics
-
-## Repository Structure
-
-```
-deploys/
-├── vector/        # Log collector (DaemonSet)
-├── victorialogs/  # Log storage
-└── vmauth/        # Auth proxy for VictoriaLogs
-```
-
-Each deploy folder contains:
-- `README.md` - Version info, install/upgrade commands, observability queries
-- `values.yaml` - Helm values
-- Optional: `httproute.yaml`, `values.secret.yaml`
-
-## Skills
-
-### /deploy
-
-Upgrade an application to a new version with GitOps workflow and MCP verification.
-
-```
-/deploy <app-name> <version>
-```
-
-Features:
 - Auto-detect folder structure (`deploys/`, `clusters/<cluster>/`, `apps/`)
-- Pre-flight checks via K8s MCP
-- Create branch & PR
+- Pre-flight checks via Kubernetes MCP
+- Create branch & PR automatically
 - Helm upgrade with rollout wait
 - **SOPS support** for encrypted values files (auto-decrypt/re-encrypt)
-- Verify via K8s MCP, VictoriaLogs MCP, Grafana MCP
+- Post-deploy verification via Kubernetes, VictoriaLogs, and Grafana MCP
 - Auto-rollback on failure
 - PR status comments with metrics (CPU/mem/HTTP)
 
-See `.claude/skills/deploy/SKILL.md` for full workflow.
-
-## LogsQL Reference
-
-Query logs using VictoriaLogs MCP:
-
-```logsql
-# By namespace and pod
-{kubernetes.pod_namespace="monitoring", kubernetes.pod_name=~"vector.*"}
-
-# Filter by level
-... | filter level:"error"
-
-# Search text
-... | filter "connection refused"
-```
-
-## Conventions
-
-1. **README versions** - Always update README.md with new version after upgrade
-2. **Version History** - Add entry to Version History table in README
-3. **PR workflow** - Create branch, PR, verify, comment status
-4. **Helm releases** - Use `helm upgrade --install` for idempotent deploys
-
----
-
-## Setup for Other Repositories
-
-To use `/deploy` skill in other repositories, install it at user level:
+## Installation
 
 ### 1. Copy skill to user directory
 
@@ -79,15 +22,14 @@ mkdir -p ~/.claude/skills/deploy
 cp .claude/skills/deploy/SKILL.md ~/.claude/skills/deploy/
 ```
 
-### 2. Configure MCP servers (user level)
+### 2. Configure MCP servers
 
-Create `.env` file with credentials:
+Add MCP servers to `~/.claude.json` under the `mcpServers` key. Docker containers start automatically when Claude Code launches.
+
+Create an `.env` file with credentials:
 
 ```bash
-# ~/.claude/mcp.env (or project-specific .env)
-
-# Kubernetes - needs kubeconfig file
-KUBECONFIG=/path/to/kubeconfig.yaml
+# ~/.claude/mcp.env
 
 # VictoriaLogs
 VL_INSTANCE_ENTRYPOINT=https://victorialogs.example.com
@@ -99,28 +41,55 @@ GRAFANA_URL=https://grafana.example.com
 GRAFANA_SERVICE_ACCOUNT_TOKEN=<token>
 ```
 
-Add MCP servers:
+Add to `~/.claude.json`:
 
-```bash
-# Kubernetes MCP
-claude mcp add kubernetes -s user -- docker run -i --rm \
-  -v /path/to/kubeconfig.yaml:/home/nonroot/.kube/config:ro \
-  mcpk8s/server:latest
-
-# VictoriaLogs MCP
-claude mcp add victorialogs -s user -- docker run -i --rm \
-  --env-file /path/to/.env \
-  ghcr.io/victoriametrics-community/mcp-victorialogs:latest
-
-# Grafana MCP
-claude mcp add grafana -s user -- docker run -i --rm \
-  --env-file /path/to/.env \
-  grafana/mcp-grafana -t stdio
+```json
+{
+  "mcpServers": {
+    "kubernetes": {
+      "type": "stdio",
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "-v", "/path/to/kubeconfig.yaml:/home/nonroot/.kube/config:ro",
+        "mcpk8s/server:latest"
+      ],
+      "env": {}
+    },
+    "victorialogs": {
+      "type": "stdio",
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "--env-file", "/path/to/.env",
+        "ghcr.io/victoriametrics-community/mcp-victorialogs:latest"
+      ],
+      "env": {}
+    },
+    "grafana": {
+      "type": "stdio",
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "--env-file", "/path/to/.env",
+        "grafana/mcp-grafana",
+        "-t", "stdio"
+      ],
+      "env": {}
+    }
+  }
+}
 ```
+
+| MCP Server | Purpose | Required |
+|------------|---------|----------|
+| kubernetes | Pod status, logs, events | Yes |
+| victorialogs | Log queries | Optional |
+| grafana | Metrics dashboards | Optional |
 
 ### 3. Create app README.md
 
-Each app folder must follow this structure:
+Each app folder must have a `README.md` with deployment metadata:
 
 ```markdown
 ## Cluster Info
@@ -145,7 +114,6 @@ Each app folder must follow this structure:
 For encrypted values files (`values.secret.yaml`), configure age key:
 
 ```bash
-# Create age key directory
 mkdir -p ~/.config/sops/age
 
 # Generate new age key (if needed)
@@ -160,15 +128,63 @@ The skill will:
 2. Fall back to `SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt`
 3. Decrypt before helm upgrade, clean up after
 
-### 5. Supported folder structures
+## Usage
 
 ```
-# Single cluster (this repo style)
-deploys/<app-name>/
+/deploy <app-name> <version>
+```
+
+Example:
+```
+/deploy victorialogs 0.12.0
+```
+
+## Supported Folder Structures
+
+```
+# Single cluster
+deploys/
+├── vector/
+├── victorialogs/
+└── vmauth/
 
 # Multi-cluster GitOps
-clusters/<cluster-name>/<app-name>/
+clusters/
+├── production/
+│   ├── vector/
+│   └── victorialogs/
+└── staging/
+    ├── vector/
+    └── victorialogs/
 
 # ArgoCD style
-apps/<app-name>/
+apps/
+├── base/
+└── overlays/
+    ├── prod/
+    └── staging/
 ```
+
+Each app folder contains:
+- `README.md` - Version info, install/upgrade commands
+- `values.yaml` - Helm values
+- Optional: `httproute.yaml`, `values.secret.yaml` (SOPS encrypted)
+
+## LogsQL Reference
+
+Query logs using VictoriaLogs MCP:
+
+```logsql
+# By namespace and pod
+{kubernetes.pod_namespace="monitoring", kubernetes.pod_name=~"vector.*"}
+
+# Filter by level
+... | filter level:"error"
+
+# Search text
+... | filter "connection refused"
+```
+
+## Workflow
+
+See `.claude/skills/deploy/SKILL.md` for the full workflow documentation.
