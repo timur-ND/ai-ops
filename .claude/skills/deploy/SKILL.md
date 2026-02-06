@@ -205,28 +205,37 @@ gh pr create --title "Upgrade <app-name> to <version>" --body "## Summary
 🤖 Generated with Claude Code"
 ```
 
-## Step 5: Wait for PR Approval
+## Step 5: Wait for PR Approval (Optional)
 
-**CRITICAL:** Do NOT proceed with helm upgrade until PR is approved.
+PR approval can be skipped when the user is the sole contributor (cannot self-approve on GitHub).
+The interactive confirmation in Step 6 (helm diff → "proceed?") serves as the deployment gate instead.
 
-### Check PR Approval Status
+### Determine if approval is needed
+
+Check the number of repo collaborators:
+```bash
+gh api repos/{owner}/{repo}/collaborators --jq 'length'
+```
+
+**If solo contributor (1 collaborator):**
+- Skip approval — inform user: "Skipping PR approval (solo contributor). Helm diff confirmation will serve as deployment gate."
+- Proceed directly to Step 6.
+
+**If team repo (>1 collaborator):**
+- Check PR approval status:
 ```bash
 gh pr view <pr-number> --json reviewDecision,reviews
 ```
-
-### Wait for Approval
-Poll until PR has at least one approval:
+- Poll until PR has at least one approval:
 ```bash
-# Check if approved
 gh pr view <pr-number> --json reviewDecision -q '.reviewDecision'
 # Expected: "APPROVED"
 ```
+- If not approved:
+  - Inform user: "PR requires approval before deployment. Please review and approve the PR, then run `/deploy` again or say 'continue'."
+  - **STOP** and wait for user instruction
 
-If not approved:
-- Inform user: "PR requires approval before deployment. Please review and approve the PR, then run `/deploy` again or say 'continue'."
-- **STOP** and wait for user instruction
-
-Once approved, proceed to Step 6.
+Once approved (or skipped for solo), proceed to Step 6.
 
 ## Step 6: Helm Diff & Upgrade
 
