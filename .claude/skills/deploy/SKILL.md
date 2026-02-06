@@ -137,6 +137,22 @@ mcp__kubernetes__list-k8s-resources (kind: Pod/Deployment/StatefulSet)
 mcp__kubernetes__get-k8s-resource (get current image version)
 ```
 
+### Save Pre-Deploy Metrics (Grafana MCP)
+
+Before upgrade, capture current resource usage for before/after comparison:
+
+```
+mcp__grafana__query_prometheus with queries:
+
+# CPU usage (save as pre_cpu)
+sum(rate(container_cpu_usage_seconds_total{namespace="<namespace>", pod=~"<app>.*"}[5m])) by (pod)
+
+# Memory usage (save as pre_memory)
+sum(container_memory_working_set_bytes{namespace="<namespace>", pod=~"<app>.*"}) by (pod)
+```
+
+Save these values for Step 8 PR comment.
+
 ### Discover HTTP Endpoint (Kubernetes MCP)
 
 Search for Ingress or HTTPRoute associated with the app:
@@ -422,11 +438,11 @@ gh pr comment <pr-number> --body "## ✅ Upgrade Verified
 | Ready | True |
 | Restarts | 0 |
 
-### Resource Usage (post-deploy)
-| Metric | Value |
-|--------|-------|
-| CPU | \`<cpu>m\` |
-| Memory | \`<memory>Mi\` |
+### Resource Usage (before → after)
+| Metric | Before | After | Delta |
+|--------|--------|-------|-------|
+| CPU | \`<pre_cpu>m\` | \`<post_cpu>m\` | \`<delta>\` |
+| Memory | \`<pre_mem>Mi\` | \`<post_mem>Mi\` | \`<delta>\` |
 
 ### HTTP Endpoint (if Ingress/HTTPRoute found)
 | Check | Result |
@@ -435,17 +451,22 @@ gh pr comment <pr-number> --body "## ✅ Upgrade Verified
 | Status | \`200 OK\` |
 | Response Time | \`<time>s\` |
 
-### HTTP Traffic Metrics (from Grafana, if applicable)
+### HTTP Traffic (from Grafana, if applicable)
 | Code Class | Rate (req/s) |
 |------------|--------------|
 | 2xx | \`<rate>\` |
 | 4xx | \`<rate>\` |
 | 5xx | \`<rate>\` |
 
+### Notable Changes
+<List key changes from the new version: breaking changes, new features,
+removed/renamed fields, port changes, etc. Get from release notes or helm diff.>
+
 ### Verification
-- ✅ HTTP endpoint responding
+- ✅ Pod running and ready
 - ✅ No errors in logs
-- ✅ Metrics within normal range
+- ✅ Resource usage stable (no significant delta)
+- ✅ HTTP endpoint responding (if applicable)
 
 **Ready to merge.**
 
